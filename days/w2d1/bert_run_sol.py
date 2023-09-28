@@ -1,9 +1,7 @@
 import torch as t
 import numpy as np
-from modules import cross_entropy
 from einops import rearrange
-from days.bert import Bert, my_bert_from_hf_weights
-from days.utils import tpeek
+from bert_tao import Bert, my_bert_from_hf_weights
 import transformers
 import torchtext
 import gin
@@ -13,6 +11,21 @@ from torch.optim import Adam
 device = "cuda" if t.cuda.is_available() else "cpu"
 print("using device", device)
 
+def cross_entropy(input, target, ignore_index=None, max=1e12):
+    exps = np.e ** input
+    exps[exps > max] = max
+    exp_sums = exps.sum(dim=-1)
+    exp_sum_logs = t.log(exp_sums)
+    gathered = t.gather(input, -1, target.unsqueeze(-1)).squeeze(-1)
+    token_losses = exp_sum_logs - gathered
+    if ignore_index is not None:
+        live_mask = target != ignore_index
+        token_losses *= live_mask
+        live_fraction = t.sum(live_mask) / live_mask.nelement()
+        if live_fraction == 0:
+            return t.FloatTensor(0)
+        token_losses /= live_fraction
+    return t.mean(token_losses)
 
 @gin.configurable
 def bert_mlm_pretrain(model, tokenizer, dataset, epochs=10, lr=1e-5):

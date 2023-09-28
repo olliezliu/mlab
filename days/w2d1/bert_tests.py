@@ -1,9 +1,9 @@
 import torch as t
 import transformers
-import days.w2d1.bert_tao as bert
+import bert_tao as bert
 import torch.nn as nn
 import torch.nn.functional as F
-from days.utils import tpeek
+from utils import tpeek
 
 
 def allclose(my_out, their_out, name, tol=1e-5):
